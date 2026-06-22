@@ -1,0 +1,13 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+bin/
+obj/
+
+# JetBrains Rider
+.idea/
+
+# General
+*.log
+.DS_Store

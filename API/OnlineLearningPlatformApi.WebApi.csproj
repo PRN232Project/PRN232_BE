@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Application\OnlineLearningPlatformApi.Application.csproj" />
+      <ProjectReference Include="..\Domain\OnlineLearningPlatformApi.Domain.csproj" />
+      <ProjectReference Include="..\Infrastructure\OnlineLearningPlatformApi.Infrastructure.csproj" />
+    </ItemGroup>
+
+</Project>
