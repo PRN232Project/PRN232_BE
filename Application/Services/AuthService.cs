@@ -160,7 +160,7 @@ namespace OnlineLearningPlatformApi.Application.Services
                 new Claim(ClaimTypes.Name, user.FullName ?? user.Email ?? string.Empty),
                 new Claim(ClaimTypes.Role, roleName),
                 new Claim("Email" , user.Email!),
-                new Claim("Role", roleName),
+                new Claim("Role", user.Role.ToString()),
                 new Claim("UserId", user.UserId.ToString()),
                 new Claim("Avatar", user.Image ?? string.Empty),
             };

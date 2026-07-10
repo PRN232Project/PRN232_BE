@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace OnlineLearningPlatformApi.Application.Services
 {
-    public class FirebaseStorageService : IFirebaseStorageService
+    public class FirebaseStorageService : IFirebaseStorageService, IStorageService
     {
         private readonly IConfiguration _config;
 
@@ -120,5 +120,14 @@ namespace OnlineLearningPlatformApi.Application.Services
 
             return await task.GetDownloadUrlAsync();
         }
+
+        public Task<string> UploadCourseImageAsync(string courseName, IFormFile file) => UploadCourseImage(courseName, file);
+
+        public Task<string> UploadUserImageAsync(string userName, IFormFile file) => UploadUserImage(userName, file);
+
+        public Task<string> UploadQuestionSubmissionFileAsync(IFormFile file) => UploadQuestionSubmissionFile(file);
+
+        // ponytail: no call sites need deletes yet; add Firebase delete when a caller depends on it.
+        public Task<bool> DeleteFileAsync(string fileUrl) => Task.FromResult(false);
     }
 }

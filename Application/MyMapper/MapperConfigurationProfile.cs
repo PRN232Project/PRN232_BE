@@ -9,6 +9,7 @@ using OnlineLearningPlatformApi.Application.Responses.Lesson;
 using OnlineLearningPlatformApi.Application.Responses.LessonItem;
 using OnlineLearningPlatformApi.Application.Responses.LessonResource;
 using OnlineLearningPlatformApi.Application.Responses.Module;
+using OnlineLearningPlatformApi.Application.Responses.User;
 using OnlineLearningPlatformApi.Domain.Entities;
 
 namespace OnlineLearningPlatformApi.Application.MyMapper
@@ -18,7 +19,7 @@ namespace OnlineLearningPlatformApi.Application.MyMapper
         public MapperConfigurationProfile()
         {
             //User
-
+            CreateMap<User, ProfileResponse>();
             //Enrollment
             CreateMap<CreateNewEnrollementRequest, Enrollment>();
 

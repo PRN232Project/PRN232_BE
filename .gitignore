@@ -11,3 +11,4 @@ obj/
 # General
 *.log
 .DS_Store
+API/appsettings.Development.json
