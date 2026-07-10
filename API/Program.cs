@@ -51,7 +51,6 @@ builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
-builder.Services.AddScoped<IStorageService, FirebaseStorageService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();

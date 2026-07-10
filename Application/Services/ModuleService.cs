@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.IServices;
+using OnlineLearningPlatformApi.Application.IServices;
 using AutoMapper;
 using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Application.Requests.Module;
@@ -126,7 +126,7 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                     var lessons = await _unitOfWork.Lessons.GetAllAsync(
                         filter: l => l.ModuleId == mod.ModuleId && !l.IsDeleted,
-                        include: q => q.Include(l => l.LessonItems)
+                        include: q => q.Include(l => l.LessonItems).ThenInclude(li => li.LessonResources)
                     );
 
                     mod.Lessons = _mapper.Map<List<LessonResponse>>(lessons)

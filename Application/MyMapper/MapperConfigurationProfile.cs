@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using OnlineLearningPlatformApi.Application.Requests.Course;
 using OnlineLearningPlatformApi.Application.Requests.Enrollment;
 using OnlineLearningPlatformApi.Application.Requests.Lesson;
@@ -37,7 +37,11 @@ namespace OnlineLearningPlatformApi.Application.MyMapper
             CreateMap<Lesson, LessonResponse>()
                 .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.Description));
             CreateMap<Lesson, LessonDetailResponse>();
-            CreateMap<LessonItem, LessonItemResponse>();
+            CreateMap<LessonItem, LessonItemResponse>()
+                .ForMember(dest => dest.Title, opt => opt.MapFrom(src => src.LessonResources.FirstOrDefault() != null ? src.LessonResources.FirstOrDefault().Title : "Học liệu"))
+                .ForMember(dest => dest.ResourceUrl, opt => opt.MapFrom(src => src.LessonResources.FirstOrDefault() != null ? src.LessonResources.FirstOrDefault().ResourceUrl : null))
+                .ForMember(dest => dest.Content, opt => opt.MapFrom(src => src.LessonResources.FirstOrDefault() != null ? src.LessonResources.FirstOrDefault().TextContent : null))
+                .ForMember(dest => dest.VideoSourceType, opt => opt.MapFrom(src => src.LessonResources.FirstOrDefault() != null ? (int?)src.LessonResources.FirstOrDefault().VideoSourceType : null));
 
             //LessonResource
             CreateMap<CreateLessonResourceRequest, LessonResource>();
