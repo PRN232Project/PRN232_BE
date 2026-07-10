@@ -7,15 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-<<<<<<< HEAD
-        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.11" />
-=======
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
->>>>>>> b8bbb4adbabf5778e39c928b49c7f3496376a9a7
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     </ItemGroup>

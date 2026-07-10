@@ -132,18 +132,6 @@ if (string.IsNullOrWhiteSpace(config.SecretToken))
     throw new InvalidOperationException("AppSettings SecretToken is missing.");
 }
 
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config.SecretToken)),
-            ValidateIssuer = false,
-            ValidateAudience = false
-        };
-    });
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
