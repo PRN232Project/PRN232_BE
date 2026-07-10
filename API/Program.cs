@@ -45,7 +45,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IGradedItemService, GradedItemService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
-builder.Services.AddScoped<IStorageService, LocalStorageService>();
+builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
