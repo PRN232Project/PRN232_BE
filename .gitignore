@@ -11,6 +11,7 @@ obj/
 # General
 *.log
 .DS_Store
+<<<<<<< HEAD
 
 ## Environment files
 appsettings.Development.json
