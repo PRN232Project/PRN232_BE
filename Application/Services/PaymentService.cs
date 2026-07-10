@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 
@@ -142,8 +142,12 @@ namespace OnlineLearningPlatformApi.Application.Services
                 Description = $"Course: {course.Title}".Length > 25
     ? $"Course: {course.Title}"[..25]
     : $"Course: {course.Title}",
-                ReturnUrl = _appSettings.PayOS.ReturnUrl,
-                CancelUrl = _appSettings.PayOS.CancelUrl,
+                ReturnUrl = !string.IsNullOrEmpty(_appSettings.PayOS.ReturnUrl) 
+                    ? _appSettings.PayOS.ReturnUrl 
+                    : "http://localhost:5180/Payment/Success",
+                CancelUrl = !string.IsNullOrEmpty(_appSettings.PayOS.CancelUrl) 
+                    ? _appSettings.PayOS.CancelUrl 
+                    : "http://localhost:5180/Payment/Fail",
 // ExpiredAt = DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds()
             };
 
