@@ -147,10 +147,10 @@ public class AdminController : ControllerBase
         return FromApiResponse(response);
     }
 
-    [HttpPost("payouts/{walletId:guid}/approve")]
-    public async Task<IActionResult> ApprovePayout(Guid walletId)
+    [HttpPost("payouts/{transactionId:guid}/approve")]
+    public async Task<IActionResult> ApprovePayout(Guid transactionId)
     {
-        var response = await _walletService.ApprovePayoutAsync(walletId);
+        var response = await _walletService.ApprovePayoutAsync(transactionId);
         return FromApiResponse(response);
     }
 

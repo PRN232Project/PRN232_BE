@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.Responses;
+using OnlineLearningPlatformApi.Application.Responses;
 
 namespace OnlineLearningPlatformApi.Application.IServices
 {
@@ -10,7 +10,7 @@ namespace OnlineLearningPlatformApi.Application.IServices
 
         Task<ApiResponse> GetPendingPayoutsAsync();
 
-        Task<ApiResponse> ApprovePayoutAsync(Guid walletId);
+        Task<ApiResponse> ApprovePayoutAsync(Guid transactionId);
 
         Task<ApiResponse> GetPlatformRevenueAsync();
 

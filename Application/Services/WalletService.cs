@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Responses;
 using OnlineLearningPlatformApi.Application.Responses.Wallet;
@@ -89,7 +89,7 @@ namespace OnlineLearningPlatformApi.Application.Services
                     Amount = -amount,
                     TransactionType = 1,
                     BalanceAfterTransaction = wallet.Balance,
-                    Description = $"Withdrawal Request to: {bankInfo}",
+                    Description = $"Withdrawal Request to: {bankInfo} (Pending)",
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -116,22 +116,42 @@ namespace OnlineLearningPlatformApi.Application.Services
             var response = new ApiResponse();
             try
             {
-                var wallets = await _uow.Wallets.GetAllAsync(w => w.Balance > 0);
+                var txs = await _uow.WalletTransactions.GetAllAsync(
+                    t => t.TransactionType == 1 && t.Description != null && t.Description.Contains("(Pending)"),
+                    include: q => q.Include(t => t.Wallet)
+                );
+
                 var result = new List<PendingPayoutResponse>();
 
-                foreach (var w in wallets)
+                foreach (var t in txs)
                 {
-                    var user = await _uow.Users.GetAsync(u => u.UserId == w.UserId);
+                    var user = await _uow.Users.GetAsync(u => u.UserId == t.Wallet.UserId);
+
+                    var bankInfo = "";
+                    if (t.Description != null)
+                    {
+                        var prefix = "Withdrawal Request to: ";
+                        var suffix = " (Pending)";
+                        var desc = t.Description;
+                        if (desc.StartsWith(prefix) && desc.EndsWith(suffix))
+                        {
+                            bankInfo = desc.Substring(prefix.Length, desc.Length - prefix.Length - suffix.Length);
+                        }
+                        else
+                        {
+                            bankInfo = desc;
+                        }
+                    }
 
                     result.Add(new PendingPayoutResponse
                     {
-                        WalletId = w.WalletId,
+                        TransactionId = t.WalletTransactionId,
+                        WalletId = t.WalletId,
                         InstructorName = user?.FullName ?? "Unknown Instructor",
                         InstructorEmail = user?.Email ?? "No email",
-                        PendingBalance = w.Balance, // Mượn trường này để lưu số tiền cần thanh toán tháng này
-                        Balance = w.Balance,
-                        TotalWithdrawn = w.TotalWithdrawn,
-                        RequestedAt = w.UpdatedAt
+                        Amount = Math.Abs(t.Amount),
+                        BankInfo = bankInfo,
+                        RequestedAt = t.CreatedAt
                     });
                 }
                 return response.SetOk(result);
@@ -173,41 +193,47 @@ namespace OnlineLearningPlatformApi.Application.Services
             }
         }
 
-        public async Task<ApiResponse> ApprovePayoutAsync(Guid walletId)
+        public async Task<ApiResponse> ApprovePayoutAsync(Guid transactionId)
         {
             var response = new ApiResponse();
             try
             {
                 await _uow.BeginTransactionAsync();
 
-                var wallet = await _uow.Wallets.GetAsync(w => w.WalletId == walletId);
+                var tx = await _uow.WalletTransactions.GetAsync(
+                    t => t.WalletTransactionId == transactionId,
+                    include: q => q.Include(t => t.Wallet)
+                );
 
-                // Trừ thẳng vào Balance (Số dư thực tế)
-                if (wallet == null || wallet.Balance <= 0)
+                if (tx == null)
                 {
                     await _uow.RollbackAsync();
-                    return response.SetBadRequest("No unpaid balance found for this wallet.");
+                    return response.SetBadRequest("Transaction request not found.");
                 }
 
-                var payoutAmount = wallet.Balance;
+                if (tx.Description == null || !tx.Description.Contains("(Pending)"))
+                {
+                    await _uow.RollbackAsync();
+                    return response.SetBadRequest("Transaction is already processed or invalid.");
+                }
 
-                wallet.Balance = 0;
+                var wallet = tx.Wallet;
+                var payoutAmount = Math.Abs(tx.Amount);
+
+                if (wallet.PendingBalance < payoutAmount)
+                {
+                    await _uow.RollbackAsync();
+                    return response.SetBadRequest("Insufficient pending balance in wallet.");
+                }
+
+                wallet.PendingBalance -= payoutAmount;
                 wallet.TotalWithdrawn += payoutAmount;
                 wallet.UpdatedAt = DateTime.UtcNow;
 
-                var tx = new WalletTransaction
-                {
-                    WalletTransactionId = Guid.NewGuid(),
-                    WalletId = wallet.WalletId,
-                    Amount = -payoutAmount,
-                    TransactionType = 1,
-                    BalanceAfterTransaction = wallet.Balance,
-                    Description = $"Monthly Settlement: Paid by Admin ({payoutAmount:N0} ₫)",
-                    CreatedAt = DateTime.UtcNow
-                };
+                tx.Description = tx.Description.Replace("(Pending)", "(Approved)");
 
-                await _uow.WalletTransactions.AddAsync(tx);
                 _uow.Wallets.Update(wallet);
+                _uow.WalletTransactions.Update(tx);
                 await _uow.SaveChangeAsync();
                 await _uow.CommitAsync();
 
