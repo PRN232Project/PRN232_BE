@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatformApi.Domain.Entities;
 
 namespace OnlineLearningPlatformApi.Domain;
@@ -49,6 +49,9 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<WalletTransaction> WalletTransactions { get; set; }
 
     public virtual DbSet<Certificate> Certificates { get; set; }
+
+    public virtual DbSet<CourseReview> CourseReviews { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AnswerOption>(entity =>
@@ -258,6 +261,25 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Payment).WithMany(p => p.WalletTransactions).HasForeignKey(d => d.PaymentId);
 
             entity.HasOne(d => d.Wallet).WithMany(p => p.WalletTransactions).HasForeignKey(d => d.WalletId);
+        });
+
+        modelBuilder.Entity<CourseReview>(entity =>
+        {
+            entity.HasKey(e => e.CourseReviewId);
+            entity.Property(e => e.CourseReviewId).ValueGeneratedNever();
+            entity.Property(e => e.Rating).IsRequired();
+            entity.Property(e => e.Comment).HasMaxLength(2000);
+            entity.HasIndex(e => new { e.CourseId, e.UserId }).IsUnique();
+
+            entity.HasOne(d => d.Course)
+                .WithMany()
+                .HasForeignKey(d => d.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         OnModelCreatingPartial(modelBuilder);

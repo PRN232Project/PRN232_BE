@@ -62,6 +62,7 @@ builder.Services.AddScoped<IModuleService, ModuleService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IUserLessonProgressService, UserLessonProgressService>();
+builder.Services.AddScoped<ICourseReviewService, CourseReviewService>();
 
 // 3. Cấu hình API Behavior (Tắt filter mặc định của MVC nếu cần tùy chỉnh validate)
 builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -144,6 +145,13 @@ if (string.IsNullOrWhiteSpace(config.SecretToken))
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Auto-apply pending migrations on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // 6. HTTP Request Pipeline
 if (app.Environment.IsDevelopment())

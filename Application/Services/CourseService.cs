@@ -419,14 +419,53 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                 var totalStudents = enrollments.Select(e => e.UserId).Distinct().Count();
                 var totalEnrollments = enrollments.Count();
-
                 var totalRevenue = enrollments.Sum(e => e.Course.Price);
+
+                var activeCoursesCount = await _unitOfWork.Courses.CountAsync(c => c.CreatedBy == userId && c.Status == 2 && !c.IsDeleted);
+
+                var instructorCourses = await _unitOfWork.Courses.GetAllAsync(c => c.CreatedBy == userId && !c.IsDeleted);
+                var courseIds = instructorCourses.Select(c => c.CourseId).ToList();
+
+                var reviews = await _unitOfWork.CourseReviews.GetAllAsync(r => courseIds.Contains(r.CourseId) && !r.IsDeleted);
+                double avgRating = reviews.Any() ? reviews.Average(r => r.Rating) : 5.0;
+
+                var popularCourses = enrollments
+                    .GroupBy(e => new { e.CourseId, e.Course.Title })
+                    .Select(g => new
+                    {
+                        Title = g.Key.Title,
+                        Enrollments = g.Count(),
+                        Revenue = g.Sum(e => e.Course.Price)
+                    })
+                    .OrderByDescending(x => x.Enrollments)
+                    .Take(5)
+                    .ToList();
+
+                var today = DateTime.UtcNow;
+                var sixMonthsAgo = new DateTime(today.Year, today.Month, 1).AddMonths(-5);
+
+                var recentEnrollments = enrollments
+                    .Where(e => e.EnrolledAt.HasValue && e.EnrolledAt.Value >= sixMonthsAgo && e.EnrolledAt.Value <= today)
+                    .ToList();
+
+                var monthlyRevenue = Enumerable.Range(0, 6)
+                    .Select(i => sixMonthsAgo.AddMonths(i))
+                    .Select(m => new
+                    {
+                        Month = $"{m.Month}/{m.Year.ToString().Substring(2)}",
+                        Amount = recentEnrollments.Where(e => e.EnrolledAt.HasValue && e.EnrolledAt.Value.Month == m.Month && e.EnrolledAt.Value.Year == m.Year).Sum(e => e.Course.Price)
+                    })
+                    .ToList();
 
                 return response.SetOk(new
                 {
                     TotalStudents = totalStudents,
                     TotalEnrollments = totalEnrollments,
-                    TotalRevenue = totalRevenue
+                    TotalRevenue = totalRevenue,
+                    ActiveCoursesCount = activeCoursesCount,
+                    AverageRating = Math.Round(avgRating, 1),
+                    PopularCourses = popularCourses,
+                    MonthlyRevenue = monthlyRevenue
                 });
             }
             catch (Exception ex)

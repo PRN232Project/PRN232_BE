@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.EntityFrameworkCore.Storage;
 using OnlineLearningPlatformApi.Domain;
 using OnlineLearningPlatformApi.Infrastructure.IRepositories;
 using OnlineLearningPlatformApi.Domain.Entities;
@@ -35,6 +35,9 @@ namespace OnlineLearningPlatformApi.Infrastructure
 
         private IGenericRepository<Certificate>? _certificates;
         public IGenericRepository<Certificate> Certificates => _certificates ??= new GenericRepository<Certificate>(_context);
+
+        private IGenericRepository<CourseReview>? _courseReviews;
+        public IGenericRepository<CourseReview> CourseReviews => _courseReviews ??= new GenericRepository<CourseReview>(_context);
 
         public UnitOfWork(AppDbContext context)
         {

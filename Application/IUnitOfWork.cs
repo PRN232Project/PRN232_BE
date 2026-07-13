@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Domain.Entities;
+using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Infrastructure.IRepositories;
 
 namespace OnlineLearningPlatformApi.Application
@@ -24,6 +24,7 @@ namespace OnlineLearningPlatformApi.Application
         IWalletRepository Wallets { get; }
         IWalletTransactionRepository WalletTransactions { get; }
         IGenericRepository<Certificate> Certificates { get; }
+        IGenericRepository<CourseReview> CourseReviews { get; }
 
         IMessageRepository Messages { get; }
 
