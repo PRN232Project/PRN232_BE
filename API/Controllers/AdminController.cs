@@ -154,6 +154,13 @@ public class AdminController : ControllerBase
         return FromApiResponse(response);
     }
 
+    [HttpPost("payouts/{transactionId:guid}/reject")]
+    public async Task<IActionResult> RejectPayout(Guid transactionId)
+    {
+        var response = await _walletService.RejectPayoutAsync(transactionId);
+        return FromApiResponse(response);
+    }
+
     private ObjectResult FromApiResponse(ApiResponse response, [CallerMemberName] string actionName = "")
     {
         if (!response.IsSuccess)

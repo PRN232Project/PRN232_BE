@@ -246,6 +246,65 @@ namespace OnlineLearningPlatformApi.Application.Services
             }
         }
 
+        public async Task<ApiResponse> RejectPayoutAsync(Guid transactionId)
+        {
+            var response = new ApiResponse();
+            try
+            {
+                await _uow.BeginTransactionAsync();
+
+                var tx = await _uow.WalletTransactions.GetAsync(
+                    t => t.WalletTransactionId == transactionId,
+                    include: q => q.Include(t => t.Wallet)
+                );
+
+                if (tx == null)
+                {
+                    await _uow.RollbackAsync();
+                    return response.SetBadRequest("Transaction request not found.");
+                }
+
+                if (tx.Description == null || !tx.Description.Contains("(Pending)"))
+                {
+                    await _uow.RollbackAsync();
+                    return response.SetBadRequest("Transaction is already processed or invalid.");
+                }
+
+                var wallet = tx.Wallet;
+                var payoutAmount = Math.Abs(tx.Amount);
+
+                wallet.Balance += payoutAmount;
+                wallet.PendingBalance -= payoutAmount;
+                wallet.UpdatedAt = DateTime.UtcNow;
+
+                tx.Description = tx.Description.Replace("(Pending)", "(Rejected)");
+
+                var refundTx = new WalletTransaction
+                {
+                    WalletTransactionId = Guid.NewGuid(),
+                    WalletId = wallet.WalletId,
+                    Amount = payoutAmount,
+                    TransactionType = 1,
+                    BalanceAfterTransaction = wallet.Balance,
+                    Description = $"Refund: Rejected Withdrawal Request ({payoutAmount:N0} ₫)",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _uow.WalletTransactions.AddAsync(refundTx);
+                _uow.Wallets.Update(wallet);
+                _uow.WalletTransactions.Update(tx);
+                await _uow.SaveChangeAsync();
+                await _uow.CommitAsync();
+
+                return response.SetOk(true);
+            }
+            catch (Exception ex)
+            {
+                await _uow.RollbackAsync();
+                return response.SetBadRequest(ex.Message);
+            }
+        }
+
         public async Task<ApiResponse> GetPlatformRevenueAsync()
         {
             var response = new ApiResponse();

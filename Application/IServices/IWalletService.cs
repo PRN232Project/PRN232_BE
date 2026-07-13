@@ -12,6 +12,8 @@ namespace OnlineLearningPlatformApi.Application.IServices
 
         Task<ApiResponse> ApprovePayoutAsync(Guid transactionId);
 
+        Task<ApiResponse> RejectPayoutAsync(Guid transactionId);
+
         Task<ApiResponse> GetPlatformRevenueAsync();
 
         Task<ApiResponse> GetCashflowReportAsync();
