@@ -630,7 +630,13 @@ namespace OnlineLearningPlatformApi.Application.Services
                         await _emailService.SendRejectCourseEmail(instructor.FullName, instructor.Email, request.RejectReason, course.Title);
                     }
 
-                    return response.SetOk("Course rejected & email sent");
+                    return response.SetOk(new {
+                        Message = "Course rejected & email sent",
+                        InstructorId = course.CreatedBy.ToString(),
+                        CourseTitle = course.Title,
+                        Status = "Rejected",
+                        Reason = request.RejectReason
+                    });
                 }
                 else
                 {
@@ -654,7 +660,12 @@ namespace OnlineLearningPlatformApi.Application.Services
                         );
                     }
 
-                    return response.SetOk("Course approved & email sent");
+                    return response.SetOk(new {
+                        Message = "Course approved & email sent",
+                        InstructorId = course.CreatedBy.ToString(),
+                        CourseTitle = course.Title,
+                        Status = "Approved"
+                    });
                 }
             }
             catch (Exception ex)

@@ -5,6 +5,8 @@ using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Requests.Admin;
 using OnlineLearningPlatformApi.Application.Requests.Course;
 using OnlineLearningPlatformApi.Application.Responses;
+using Microsoft.AspNetCore.SignalR;
+using API.Hubs;
 
 namespace API.Controllers;
 
@@ -17,17 +19,20 @@ public class AdminController : ControllerBase
     private readonly ICourseService _courseService;
     private readonly ILogger<AdminController> _logger;
     private readonly IWalletService _walletService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public AdminController(
         IAdminService adminService,
         ICourseService courseService,
         ILogger<AdminController> logger,
-        IWalletService walletService)
+        IWalletService walletService,
+        IHubContext<NotificationHub> hubContext)
     {
         _adminService = adminService;
         _courseService = courseService;
         _logger = logger;
         _walletService = walletService;
+        _hubContext = hubContext;
     }
 
     // Dashboard and reports
@@ -136,6 +141,29 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> ReviewCourse([FromBody] ApproveCourseRequest request)
     {
         var response = await _courseService.ApproveCourseAsync(request);
+        if (response.IsSuccess && response.Result != null)
+        {
+            await _hubContext.Clients.All.SendAsync("CoursePendingUpdate");
+
+            try
+            {
+                dynamic data = response.Result;
+                string instructorId = data.InstructorId;
+                string courseTitle = data.CourseTitle;
+                string status = data.Status;
+
+                string title = status == "Approved" ? "Khóa học đã được phê duyệt" : "Khóa học bị từ chối";
+                string message = status == "Approved"
+                    ? $"Khóa học '{courseTitle}' của bạn đã được phê duyệt và xuất bản thành công."
+                    : $"Khóa học '{courseTitle}' của bạn bị từ chối. Lý do: {data.Reason}";
+
+                await NotificationHub.SendNotificationToUser(_hubContext, instructorId, "course_review", title, message, new { courseId = request.CourseId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi gửi thông báo SignalR cho giảng viên");
+            }
+        }
         return FromApiResponse(response);
     }
 
@@ -158,6 +186,10 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> ApprovePayout(Guid transactionId)
     {
         var response = await _walletService.ApprovePayoutAsync(transactionId);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("WalletBalanceUpdate");
+        }
         return FromApiResponse(response);
     }
 
@@ -165,6 +197,10 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> RejectPayout(Guid transactionId)
     {
         var response = await _walletService.RejectPayoutAsync(transactionId);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("WalletBalanceUpdate");
+        }
         return FromApiResponse(response);
     }
 

@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using System.Text;
+using API.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 

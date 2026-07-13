@@ -21,6 +21,46 @@ namespace OnlineLearningPlatformApi.Application.Services
             var response = new ApiResponse();
             try
             {
+                var sender = await _uow.Users.GetAsync(u => u.UserId == senderId);
+                var receiver = await _uow.Users.GetAsync(u => u.UserId == receiverId);
+                if (sender == null || receiver == null) return response.SetBadRequest("User not found");
+
+                bool isAllowed = false;
+                if (sender.Role == 0) // Admin
+                {
+                    // Admin can only message Teachers
+                    isAllowed = receiver.Role == 1;
+                }
+                else if (sender.Role == 1) // Instructor (Teacher)
+                {
+                    // Teacher can message Admins or their enrolled students
+                    if (receiver.Role == 0)
+                    {
+                        isAllowed = true;
+                    }
+                    else if (receiver.Role == 2)
+                    {
+                        isAllowed = await _uow.Enrollments.GetQueryable()
+                            .Include(e => e.Course)
+                            .AnyAsync(e => e.UserId == receiverId && e.Course.CreatedBy == senderId && !e.IsDeleted && (e.Status == 1 || e.Status == 2));
+                    }
+                }
+                else if (sender.Role == 2) // Student
+                {
+                    // Student can only message Teachers of courses they registered (No Admins)
+                    if (receiver.Role == 1)
+                    {
+                        isAllowed = await _uow.Enrollments.GetQueryable()
+                            .Include(e => e.Course)
+                            .AnyAsync(e => e.UserId == senderId && e.Course.CreatedBy == receiverId && !e.IsDeleted && (e.Status == 1 || e.Status == 2));
+                    }
+                }
+
+                if (!isAllowed)
+                {
+                    return response.SetBadRequest("You are not authorized to send messages to this user.");
+                }
+
                 var message = new Message
                 {
                     MessageId = Guid.NewGuid(),
@@ -34,8 +74,6 @@ namespace OnlineLearningPlatformApi.Application.Services
                 await _uow.BeginTransactionAsync();
                 await _uow.Messages.AddAsync(message);
                 await _uow.CommitAsync();
-
-                var sender = await _uow.Users.GetAsync(u => u.UserId == senderId);
 
                 var result = new MessageResponse
                 {
@@ -126,46 +164,41 @@ namespace OnlineLearningPlatformApi.Application.Services
                 var currentUser = await _uow.Users.GetAsync(u => u.UserId == currentUserId);
                 if (currentUser == null) return response.SetBadRequest("User not found");
 
-                var messagePartners = await _uow.Messages.GetQueryable()
-                    .Where(m => m.SenderId == currentUserId || m.ReceiverId == currentUserId)
-                    .Select(m => m.SenderId == currentUserId ? m.ReceiverId : m.SenderId)
-                    .Distinct()
-                    .ToListAsync();
+                var allContactIds = new List<Guid>();
 
-                var allContactIds = messagePartners.ToList();
-
-                if (currentUser.Role == 0)
+                if (currentUser.Role == 0) // Admin
                 {
+                    // Admin can chat with all Teachers (Role == 1)
                     var teachers = await _uow.Users.GetAllAsync(u => u.Role == 1);
                     allContactIds.AddRange(teachers.Select(t => t.UserId));
                 }
-                else if (currentUser.Role == 1)
+                else if (currentUser.Role == 1) // Instructor (Teacher)
                 {
+                    // Teacher can chat with all Admins (Role == 0)
                     var admins = await _uow.Users.GetAllAsync(u => u.Role == 0);
                     allContactIds.AddRange(admins.Select(a => a.UserId));
 
-                    var paidStudents = await _uow.Enrollments.GetQueryable()
+                    // Teacher can chat with students who enrolled in their courses
+                    var enrolledStudents = await _uow.Enrollments.GetQueryable()
                         .Include(e => e.Course)
                         .Where(e => e.Course.CreatedBy == currentUserId && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
                         .Select(e => e.UserId)
                         .Distinct()
                         .ToListAsync();
 
-                    allContactIds.AddRange(paidStudents);
+                    allContactIds.AddRange(enrolledStudents);
                 }
-                else if (currentUser.Role == 2)
+                else if (currentUser.Role == 2) // Student
                 {
-                    var admins = await _uow.Users.GetAllAsync(u => u.Role == 0);
-                    allContactIds.AddRange(admins.Select(a => a.UserId));
-
-                    var paidTeachers = await _uow.Enrollments.GetQueryable()
+                    // Student can ONLY chat with Teachers of courses they registered (No Admins)
+                    var enrolledTeachers = await _uow.Enrollments.GetQueryable()
                         .Include(e => e.Course)
                         .Where(e => e.UserId == currentUserId && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
                         .Select(e => e.Course.CreatedBy)
                         .Distinct()
                         .ToListAsync();
 
-                    allContactIds.AddRange(paidTeachers);
+                    allContactIds.AddRange(enrolledTeachers);
                 }
 
                 allContactIds = allContactIds.Distinct().ToList();
@@ -173,14 +206,74 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                 var users = await _uow.Users.GetAllAsync(u => allContactIds.Contains(u.UserId));
 
-                var result = users.Select(u => new
+                // Fetch enrollments to get common courses
+                var enrollmentsDict = new Dictionary<Guid, List<string>>();
+                if (currentUser.Role == 1) // Teacher -> Student contacts
                 {
-                    id = u.UserId,
-                    name = u.FullName ?? u.Email,
-                    lastMessage = "Click to view chat...",
-                    lastTime = "",
-                    unread = 0,
-                    isOnline = false
+                    var studentIds = users.Where(u => u.Role == 2).Select(u => u.UserId).ToList();
+                    if (studentIds.Any())
+                    {
+                        var enrolls = await _uow.Enrollments.GetQueryable()
+                            .Include(e => e.Course)
+                            .Where(e => e.Course.CreatedBy == currentUserId && studentIds.Contains(e.UserId) && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
+                            .Select(e => new { e.UserId, e.Course.Title })
+                            .ToListAsync();
+
+                        enrollmentsDict = enrolls.GroupBy(e => e.UserId)
+                            .ToDictionary(g => g.Key, g => g.Select(x => x.Title).ToList());
+                    }
+                }
+                else if (currentUser.Role == 2) // Student -> Teacher contacts
+                {
+                    var teacherIds = users.Where(u => u.Role == 1).Select(u => u.UserId).ToList();
+                    if (teacherIds.Any())
+                    {
+                        var enrolls = await _uow.Enrollments.GetQueryable()
+                            .Include(e => e.Course)
+                            .Where(e => e.UserId == currentUserId && teacherIds.Contains(e.Course.CreatedBy) && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
+                            .Select(e => new { TeacherId = e.Course.CreatedBy, e.Course.Title })
+                            .ToListAsync();
+
+                        enrollmentsDict = enrolls.GroupBy(e => e.TeacherId)
+                            .ToDictionary(g => g.Key, g => g.Select(x => x.Title).ToList());
+                    }
+                }
+
+                // Fetch last message for each contact to show dynamic preview
+                var lastMessages = await _uow.Messages.GetQueryable()
+                    .Where(m => m.SenderId == currentUserId || m.ReceiverId == currentUserId)
+                    .OrderByDescending(m => m.SentAt)
+                    .ToListAsync();
+                
+                var lastMsgDict = new Dictionary<Guid, Message>();
+                foreach (var m in lastMessages)
+                {
+                    var partnerId = m.SenderId == currentUserId ? m.ReceiverId : m.SenderId;
+                    if (!lastMsgDict.ContainsKey(partnerId))
+                    {
+                        lastMsgDict[partnerId] = m;
+                    }
+                }
+
+                var result = users.Select(u => {
+                    var userCourses = enrollmentsDict.ContainsKey(u.UserId) ? enrollmentsDict[u.UserId] : new List<string>();
+                    string roleLabel = u.Role == 0 ? "Admin" : (u.Role == 1 ? "Giảng viên" : "Học sinh");
+                    var hasLastMsg = lastMsgDict.ContainsKey(u.UserId);
+                    var lastMsgContent = hasLastMsg ? lastMsgDict[u.UserId].Content : "Chưa có tin nhắn nào...";
+                    var lastTime = hasLastMsg ? lastMsgDict[u.UserId].SentAt.ToString("o") : ""; // use ISO format
+
+                    return new
+                    {
+                        id = u.UserId,
+                        name = u.FullName ?? u.Email,
+                        lastMessage = lastMsgContent,
+                        lastTime = lastTime,
+                        unread = 0,
+                        isOnline = false,
+                        role = u.Role,
+                        roleLabel = roleLabel,
+                        courses = userCourses
+                    };
                 }).ToList();
 
                 return response.SetOk(result);

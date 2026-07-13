@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Requests.Course;
+using Microsoft.AspNetCore.SignalR;
+using API.Hubs;
 using OnlineLearningPlatformApi.Application.Requests.Lesson;
 using OnlineLearningPlatformApi.Application.Requests.LessonItem;
 using OnlineLearningPlatformApi.Application.Requests.LessonResource;
@@ -21,6 +23,7 @@ public class InstructorController : ControllerBase
     private readonly ILessonService _lessonService;
     private readonly IModuleService _moduleService;
     private readonly IWalletService _walletService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
     public InstructorController(
         ICourseService courseService,
@@ -28,7 +31,8 @@ public class InstructorController : ControllerBase
         ILessonResourceService lessonResourceService,
         ILessonService lessonService,
         IModuleService moduleService,
-        IWalletService walletService)
+        IWalletService walletService,
+        IHubContext<NotificationHub> hubContext)
     {
         _courseService = courseService;
         _lessonItemService = lessonItemService;
@@ -36,6 +40,7 @@ public class InstructorController : ControllerBase
         _lessonService = lessonService;
         _moduleService = moduleService;
         _walletService = walletService;
+        _hubContext = hubContext;
     }
 
     [HttpGet("dashboard")]
@@ -85,6 +90,10 @@ public class InstructorController : ControllerBase
     public async Task<IActionResult> SubmitCourseForReview(Guid courseId)
     {
         var response = await _courseService.ValidateAndSubmitForReviewAsync(courseId);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("CoursePendingUpdate");
+        }
         return FromApiResponse(response);
     }
 
@@ -262,6 +271,10 @@ public class InstructorController : ControllerBase
     public async Task<IActionResult> RequestWithdrawal([FromBody] WithdrawalRequest request)
     {
         var response = await _walletService.RequestWithdrawalAsync(request.Amount, request.BankInfo);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("WalletBalanceUpdate");
+        }
         return FromApiResponse(response);
     }
 

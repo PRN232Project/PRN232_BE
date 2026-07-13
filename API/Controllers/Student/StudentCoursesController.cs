@@ -8,6 +8,8 @@ using OnlineLearningPlatformApi.Application.Responses.Course;
 using OnlineLearningPlatformApi.Domain;
 using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Infrastructure;
+using Microsoft.AspNetCore.SignalR;
+using API.Hubs;
 
 [ApiController]
 [Route("api/student/courses")]
@@ -16,11 +18,13 @@ public class StudentCoursesController : ControllerBase
 {
     private readonly IEnrollmentService _enrollmentService;
     private readonly ICourseService _courseService;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public StudentCoursesController(IEnrollmentService enrollmentService, ICourseService courseService)
+    public StudentCoursesController(IEnrollmentService enrollmentService, ICourseService courseService, IHubContext<NotificationHub> hubContext)
     {
         _enrollmentService = enrollmentService;
         _courseService = courseService;
+        _hubContext = hubContext;
     }
 
     [HttpGet("enrolled")]
@@ -53,6 +57,10 @@ public class StudentCoursesController : ControllerBase
         }
 
         var response = await _enrollmentService.EnrollStudentDirectlyAsync(courseId);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("CoursePendingUpdate");
+        }
         return StatusCode((int)response.StatusCode, response);
     }
 
@@ -128,6 +136,9 @@ public class StudentCoursesController : ControllerBase
             await dbContext.Enrollments.AddAsync(enrollment);
             await dbContext.SaveChangesAsync();
 
+            await _hubContext.Clients.All.SendAsync("CoursePendingUpdate");
+            await _hubContext.Clients.All.SendAsync("WalletBalanceUpdate");
+
             return Ok(new ApiResponse().SetOk(new { checkoutUrl = "mock-sandbox-success" }));
         }
     }
@@ -136,6 +147,11 @@ public class StudentCoursesController : ControllerBase
     public async Task<IActionResult> SyncPayment(long orderCode, [FromServices] IPaymentService paymentService)
     {
         var response = await paymentService.SyncPaymentStatusAsync(orderCode);
+        if (response.IsSuccess)
+        {
+            await _hubContext.Clients.All.SendAsync("CoursePendingUpdate");
+            await _hubContext.Clients.All.SendAsync("WalletBalanceUpdate");
+        }
         return StatusCode((int)response.StatusCode, response);
     }
 
