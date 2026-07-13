@@ -1,4 +1,4 @@
-﻿
+
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Application.Requests.UserLessonProgress;
@@ -109,17 +109,26 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                 //_unitOfWork.UserLessonProgresses.Update(progress);
                 var lesson = await _unitOfWork.Lessons.GetAsync(l => l.LessonId == lessonId);
+                if (lesson == null) return response.SetBadRequest("Lesson not found");
                 var module = await _unitOfWork.Modules.GetAsync(m => m.ModuleId == lesson.ModuleId);
+                if (module == null) return response.SetBadRequest("Module not found");
                 var courseId = module.CourseId;
 
-                var totalLessonInCourse = await _unitOfWork.Lessons
-                    .CountAsync(l => l.Module.CourseId == courseId);
+                var moduleIds = (await _unitOfWork.Modules.GetAllAsync(m => m.CourseId == courseId && !m.IsDeleted))
+                    .Select(m => m.ModuleId)
+                    .ToList();
+
+                var lessonIdsInCourse = (await _unitOfWork.Lessons.GetAllAsync(l => moduleIds.Contains(l.ModuleId) && !l.IsDeleted))
+                    .Select(l => l.LessonId)
+                    .ToList();
+
+                var totalLessonInCourse = lessonIdsInCourse.Count;
 
                 var completedLessonsInCourse = await _unitOfWork.UserLessonProgresses.CountAsync(
                     lp => lp.UserId == userId
                        && lp.IsCompleted
-                       && lp.Lesson.Module.CourseId == courseId
-                );
+                       && lessonIdsInCourse.Contains(lp.LessonId)
+                 );
 
                 var enrollment = await _unitOfWork.Enrollments
                     .GetAsync(e => e.UserId == userId && e.CourseId == courseId);

@@ -730,6 +730,18 @@ namespace OnlineLearningPlatformApi.Application.Services
                     progressRows.AddRange(newProgresses);
                 }
 
+                var totalLessons = lessonIds.Count;
+                var completedLessons = progressRows.Count(p => p.IsCompleted);
+                decimal percent = totalLessons > 0 ? ((decimal)completedLessons / totalLessons) * 100m : 0m;
+                decimal roundedPercent = Math.Round(percent, 2);
+
+                if (enrollment.ProgressPercent != roundedPercent)
+                {
+                    enrollment.ProgressPercent = roundedPercent;
+                    _unitOfWork.Enrollments.Update(enrollment);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
                 var progressByLesson = progressRows
                     .GroupBy(p => p.LessonId)
                     .ToDictionary(g => g.Key, g => g.Any(x => x.IsCompleted));
