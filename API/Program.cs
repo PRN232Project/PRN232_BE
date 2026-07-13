@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using OnlineLearningPlatformApi.Application;
@@ -10,9 +11,11 @@ using OnlineLearningPlatformApi.Domain;
 using OnlineLearningPlatformApi.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
 
 // 1. Cấu hình AppSettings
 var config = builder.Configuration.Get<AppSettings>();
@@ -93,11 +96,15 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
+
+// Custom UserIdProvider: dùng ClaimTypes.NameIdentifier (sub) từ JWT
+builder.Services.AddSingleton<IUserIdProvider, NameUserIdProvider>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -134,7 +141,32 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
+
+// Cấu hình JWT cho SignalR (token qua query string)
+builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    var originalOnMessageReceived = options.Events?.OnMessageReceived;
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/notification")))
+            {
+                context.Token = accessToken;
+            }
+            return originalOnMessageReceived != null
+                ? originalOnMessageReceived(context)
+                : Task.CompletedTask;
+        }
+    };
+});
 
 
 if (string.IsNullOrWhiteSpace(config.SecretToken))
@@ -166,6 +198,18 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapControllers(); // Chỉ map Controllers cho Web API
+app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<NotificationHub>("/hubs/notification");
 
 app.Run();
+
+// UserIdProvider: map JWT sub claim -> SignalR User ID
+public class NameUserIdProvider : IUserIdProvider
+{
+    public string? GetUserId(HubConnectionContext connection)
+    {
+        return connection.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? connection.User?.FindFirst("sub")?.Value;
+    }
+}
