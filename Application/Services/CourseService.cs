@@ -132,6 +132,71 @@ namespace OnlineLearningPlatformApi.Application.Services
             }
         }
 
+        public async Task<ApiResponse> GetCourseDetailForAdminAsync(Guid courseId)
+        {
+            ApiResponse response = new ApiResponse();
+            try
+            {
+                var course = await _unitOfWork.Courses.GetAsync(c => c.CourseId == courseId && !c.IsDeleted);
+                if (course == null)
+                {
+                    return response.SetNotFound("Course not found");
+                }
+
+                // Get instructor name
+                string instructorName = "Unknown";
+                if (course.CreatedBy != Guid.Empty)
+                {
+                    var instructor = await _unitOfWork.Users.GetAsync(u => u.UserId == course.CreatedBy);
+                    if (instructor != null) instructorName = instructor.FullName;
+                }
+
+                var modules = (await _unitOfWork.Modules.GetAllAsync(m => m.CourseId == courseId && !m.IsDeleted))
+                    .OrderBy(m => m.Index)
+                    .ToList();
+                var moduleIds = modules.Select(m => m.ModuleId).ToList();
+
+                var lessons = moduleIds.Count > 0
+                    ? (await _unitOfWork.Lessons.GetAllAsync(l => moduleIds.Contains(l.ModuleId) && !l.IsDeleted))
+                        .OrderBy(l => l.OrderIndex).ToList()
+                    : new List<Domain.Entities.Lesson>();
+
+                var result = new
+                {
+                    courseId = course.CourseId,
+                    title = course.Title,
+                    description = course.Description,
+                    price = course.Price,
+                    image = course.Image,
+                    level = course.Level,
+                    status = course.Status,
+                    instructorName,
+                    modules = modules.Select(m => new
+                    {
+                        moduleId = m.ModuleId,
+                        title = m.Name,
+                        index = m.Index,
+                        lessons = lessons
+                            .Where(l => l.ModuleId == m.ModuleId)
+                            .Select(l => new
+                            {
+                                lessonId = l.LessonId,
+                                title = l.Title,
+                                description = l.Description,
+                                orderIndex = l.OrderIndex,
+                                estimatedMinutes = l.EstimatedMinutes
+                            }).ToList()
+                    }).ToList()
+                };
+
+                return response.SetOk(result);
+            }
+            catch (Exception ex)
+            {
+                return response.SetBadRequest(message: ex.Message);
+            }
+        }
+
         public async Task<ApiResponse> UpdateCourseAsync(UpdateCourseRequest request)
         {
             ApiResponse response = new ApiResponse();

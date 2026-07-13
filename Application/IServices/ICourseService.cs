@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.Requests.Course;
+using OnlineLearningPlatformApi.Application.Requests.Course;
 using OnlineLearningPlatformApi.Application.Responses;
 
 namespace OnlineLearningPlatformApi.Application.IServices
@@ -28,5 +28,6 @@ namespace OnlineLearningPlatformApi.Application.IServices
         Task<ApiResponse> GetCourseForEditAsync(Guid courseId);
         Task<ApiResponse> ValidateAndSubmitForReviewAsync(Guid courseId);
         Task<ApiResponse> GetPendingCoursesForAdminAsync();
+        Task<ApiResponse> GetCourseDetailForAdminAsync(Guid courseId);
     }
 }

@@ -139,6 +139,13 @@ public class AdminController : ControllerBase
         return FromApiResponse(response);
     }
 
+    [HttpGet("courses/{courseId:guid}/detail")]
+    public async Task<IActionResult> GetCourseDetailForAdmin(Guid courseId)
+    {
+        var response = await _courseService.GetCourseDetailForAdminAsync(courseId);
+        return FromApiResponse(response);
+    }
+
     // Payout review
     [HttpGet("payouts/pending")]
     public async Task<IActionResult> GetPendingPayouts()
