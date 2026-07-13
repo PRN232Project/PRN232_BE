@@ -1,7 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Responses;
 using OnlineLearningPlatformApi.Application.Responses.Certificate;
+using OnlineLearningPlatformApi.Domain.Entities;
 
 namespace OnlineLearningPlatformApi.Application.Services
 {
@@ -52,6 +53,40 @@ namespace OnlineLearningPlatformApi.Application.Services
             var response = new ApiResponse();
             try
             {
+                // Auto-healing check: Find any completed enrollment that is missing a certificate
+                var completedEnrollments = await _unitOfWork.Enrollments.GetAllAsync(
+                    e => e.UserId == userId && e.ProgressPercent >= 100 && !e.IsDeleted
+                );
+
+                bool hasNewCerts = false;
+                foreach (var enrollment in completedEnrollments)
+                {
+                    var existingCert = await _unitOfWork.Certificates.GetAsync(
+                        c => c.UserId == userId && c.CourseId == enrollment.CourseId && !c.IsDeleted
+                    );
+
+                    if (existingCert == null)
+                    {
+                        string uniqueCode = "OLP-" + Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+                        var newCert = new Certificate
+                        {
+                            CertificateId = Guid.NewGuid(),
+                            UserId = userId,
+                            CourseId = enrollment.CourseId,
+                            IssueDate = enrollment.CompletedAt ?? DateTime.UtcNow,
+                            CertificateCode = uniqueCode,
+                            IsDeleted = false
+                        };
+                        await _unitOfWork.Certificates.AddAsync(newCert);
+                        hasNewCerts = true;
+                    }
+                }
+
+                if (hasNewCerts)
+                {
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
                 var certificates = await _unitOfWork.Certificates.GetAllAsync(
                     c => c.UserId == userId && !c.IsDeleted,
                     include: c => c.Include(x => x.Course).Include(x => x.User)
