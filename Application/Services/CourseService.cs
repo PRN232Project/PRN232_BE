@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.IServices;
+using OnlineLearningPlatformApi.Application.IServices;
 using AutoMapper;
 using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Application.Requests.Course;
@@ -704,6 +704,31 @@ namespace OnlineLearningPlatformApi.Application.Services
                 var progressRows = await _unitOfWork.UserLessonProgresses.GetAllAsync(p =>
                     p.UserId == claim.UserId
                     && lessonIds.Contains(p.LessonId));
+
+                // Auto-healing check: if any lesson progress record is missing, initialize it
+                var existingLessonIds = progressRows.Select(p => p.LessonId).ToHashSet();
+                var missingLessonIds = lessonIds.Where(id => !existingLessonIds.Contains(id)).ToList();
+                if (missingLessonIds.Any())
+                {
+                    var newProgresses = new List<UserLessonProgress>();
+                    foreach (var missingId in missingLessonIds)
+                    {
+                        var newProg = new UserLessonProgress
+                        {
+                            LessonProgressId = Guid.NewGuid(),
+                            UserId = claim.UserId,
+                            LessonId = missingId,
+                            IsCompleted = false,
+                            CompletionPercent = 0,
+                            LastWatchedSecond = 0,
+                            LastAccessedAt = DateTime.UtcNow
+                        };
+                        await _unitOfWork.UserLessonProgresses.AddAsync(newProg);
+                        newProgresses.Add(newProg);
+                    }
+                    await _unitOfWork.SaveChangeAsync();
+                    progressRows.AddRange(newProgresses);
+                }
 
                 var progressByLesson = progressRows
                     .GroupBy(p => p.LessonId)
