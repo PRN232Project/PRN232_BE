@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Responses;
 using OnlineLearningPlatformApi.Application.Responses.Message;
@@ -146,7 +146,7 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                     var paidStudents = await _uow.Enrollments.GetQueryable()
                         .Include(e => e.Course)
-                        .Where(e => e.Course.CreatedBy == currentUserId && e.Status == 1 && e.Course.Price > 0)
+                        .Where(e => e.Course.CreatedBy == currentUserId && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
                         .Select(e => e.UserId)
                         .Distinct()
                         .ToListAsync();
@@ -160,7 +160,7 @@ namespace OnlineLearningPlatformApi.Application.Services
 
                     var paidTeachers = await _uow.Enrollments.GetQueryable()
                         .Include(e => e.Course)
-                        .Where(e => e.UserId == currentUserId && e.Status == 1 && e.Course.Price > 0)
+                        .Where(e => e.UserId == currentUserId && !e.IsDeleted && (e.Status == 1 || e.Status == 2))
                         .Select(e => e.Course.CreatedBy)
                         .Distinct()
                         .ToListAsync();

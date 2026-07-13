@@ -4,7 +4,7 @@ using OnlineLearningPlatformApi.Application.IServices;
 
 [ApiController]
 [Route("api/student/messages")]
-[Authorize(Roles = "Student")]
+[Authorize(Roles = "Student,Instructor,Admin")]
 public class StudentMessagesController : ControllerBase
 {
     private readonly IMessageService _messageService;
