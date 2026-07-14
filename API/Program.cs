@@ -196,6 +196,7 @@ app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseRouting(); // Cần thiết cho MapHub và Controllers
 app.UseCors("AllowAll");
+app.UseWebSockets();
 app.UseAuthentication();
 app.UseAuthorization();
 
