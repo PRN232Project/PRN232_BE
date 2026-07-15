@@ -15,6 +15,7 @@ namespace OnlineLearningPlatformApi.Application.Responses.Admin
     {
         public Guid InstructorId { get; set; }
         public string? InstructorName { get; set; }
+        public string? Email { get; set; }
         public int StudentCount { get; set; }
         public decimal Revenue { get; set; }
     }

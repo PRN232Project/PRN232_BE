@@ -35,11 +35,13 @@ public class AdminController : ControllerBase
         _hubContext = hubContext;
     }
 
-    // Dashboard and reports
     [HttpGet("overview")]
-    public async Task<IActionResult> GetOverview([FromQuery] int recentPayments = 10)
+    public async Task<IActionResult> GetOverview(
+        [FromQuery] int recentPayments = 10,
+        [FromQuery] DateTime? fromDate = null,
+        [FromQuery] DateTime? toDate = null)
     {
-        var overview = await _adminService.GetOverviewAsync(recentPayments);
+        var overview = await _adminService.GetOverviewAsync(recentPayments, fromDate, toDate);
         return Ok(overview);
     }
 

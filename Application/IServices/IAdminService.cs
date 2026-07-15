@@ -5,7 +5,7 @@ namespace OnlineLearningPlatformApi.Application.IServices
 {
     public interface IAdminService
     {
-        Task<AdminOverviewResponse> GetOverviewAsync(int recentPayments = 10);
+        Task<AdminOverviewResponse> GetOverviewAsync(int recentPayments = 10, DateTime? fromDate = null, DateTime? toDate = null);
         Task<AdminUsersResponse> GetUsersAsync(int page = 1, int pageSize = 10, string? search = null, string? role = null);
         Task<AdminUserItem?> GetUserByIdAsync(Guid userId);
         Task<bool> UpdateUserAsync(Guid userId, AdminUpdateUserRequest request);
