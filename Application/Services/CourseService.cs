@@ -118,13 +118,123 @@ namespace OnlineLearningPlatformApi.Application.Services
             ApiResponse response = new ApiResponse();
             try
             {
-                var course = await _unitOfWork.Courses.GetAsync(c => c.CourseId == courseId);
+                var course = await _unitOfWork.Courses.GetAsync(c => c.CourseId == courseId && !c.IsDeleted);
                 if (course == null)
                 {
                     return response.SetNotFound("Course not found");
                 }
-                var courseResponse = _mapper.Map<CourseResponse>(course);
-                return response.SetOk(courseResponse);
+
+                // Get language name
+                string languageName = "Tiếng Việt";
+                if (course.LanguageId != Guid.Empty)
+                {
+                    var language = await _unitOfWork.Languages.GetAsync(l => l.LanguageId == course.LanguageId);
+                    if (language != null) languageName = language.Name;
+                }
+
+                // Get instructor name & bio
+                string instructorName = "Giảng viên";
+                string instructorBio = "";
+                if (course.CreatedBy != Guid.Empty)
+                {
+                    var instructor = await _unitOfWork.Users.GetAsync(u => u.UserId == course.CreatedBy);
+                    if (instructor != null)
+                    {
+                        instructorName = instructor.FullName;
+                        instructorBio = instructor.Bio ?? "";
+                    }
+                }
+
+                // Get student count (non-deleted enrollments)
+                int studentsCount = await _unitOfWork.Enrollments.CountAsync(e => 
+                    e.CourseId == courseId 
+                    && (e.Status == 1 || e.Status == 2) 
+                    && !e.IsDeleted);
+
+                // Get modules
+                var modules = (await _unitOfWork.Modules.GetAllAsync(m => m.CourseId == courseId && !m.IsDeleted))
+                    .OrderBy(m => m.Index)
+                    .ToList();
+                var moduleIds = modules.Select(m => m.ModuleId).ToList();
+
+                // Get lessons
+                var lessons = moduleIds.Count > 0
+                    ? (await _unitOfWork.Lessons.GetAllAsync(l => moduleIds.Contains(l.ModuleId) && !l.IsDeleted))
+                        .OrderBy(l => l.OrderIndex).ToList()
+                    : new List<Domain.Entities.Lesson>();
+                var lessonIds = lessons.Select(l => l.LessonId).ToList();
+
+                // Get lesson items
+                var lessonItems = lessonIds.Count > 0
+                    ? (await _unitOfWork.LessonItems.GetAllAsync(li => lessonIds.Contains(li.LessonId) && !li.IsDeleted))
+                        .OrderBy(li => li.OrderIndex).ToList()
+                    : new List<Domain.Entities.LessonItem>();
+                var lessonItemIds = lessonItems.Select(li => li.LessonItemId).ToList();
+
+                // Get lesson resources (to calculate video durations)
+                var lessonResources = lessonItemIds.Count > 0
+                    ? (await _unitOfWork.LessonResources.GetAllAsync(lr => lessonItemIds.Contains(lr.LessonItemId) && !lr.IsDeleted))
+                    : new List<Domain.Entities.LessonResource>();
+
+                // Calculate total duration (in minutes)
+                int totalEstimatedMinutes = lessons.Sum(l => l.EstimatedMinutes);
+                string durationStr = $"{totalEstimatedMinutes / 60} giờ {(totalEstimatedMinutes % 60)} phút";
+                if (totalEstimatedMinutes < 60) durationStr = $"{totalEstimatedMinutes} phút";
+
+                var result = new
+                {
+                    courseId = course.CourseId,
+                    title = course.Title,
+                    description = course.Description,
+                    price = course.Price,
+                    image = course.Image,
+                    level = course.Level == 0 ? "Beginner" : course.Level == 1 ? "Intermediate" : "Advanced",
+                    status = course.Status,
+                    languageName,
+                    instructorName,
+                    instructorBio,
+                    students = studentsCount,
+                    duration = durationStr,
+                    modules = modules.Select(m => new
+                    {
+                        moduleId = m.ModuleId,
+                        courseId = m.CourseId,
+                        title = m.Name,
+                        orderIndex = m.Index,
+                        lessons = lessons
+                            .Where(l => l.ModuleId == m.ModuleId)
+                            .Select(l => new
+                            {
+                                lessonId = l.LessonId,
+                                moduleId = l.ModuleId,
+                                title = l.Title,
+                                orderIndex = l.OrderIndex,
+                                lessonItems = lessonItems
+                                    .Where(li => li.LessonId == l.LessonId)
+                                    .Select(li => {
+                                        var res = lessonResources.FirstOrDefault(lr => lr.LessonItemId == li.LessonItemId);
+                                        int durationMin = 0;
+                                        if (res != null) {
+                                            durationMin = res.DurationInSeconds.HasValue 
+                                                ? (int)Math.Ceiling(res.DurationInSeconds.Value / 60.0) 
+                                                : 0;
+                                        }
+                                        if (durationMin == 0) durationMin = 5; // default 5 mins
+                                        return new
+                                        {
+                                            lessonItemId = li.LessonItemId,
+                                            lessonId = li.LessonId,
+                                            title = res?.Title ?? (li.Type == 0 ? "Bài học Video" : li.Type == 1 ? "Bài đọc" : "Bài kiểm tra"),
+                                            type = li.Type, // Video = 0, Article = 1, Quiz = 2
+                                            durationMinutes = durationMin,
+                                            orderIndex = li.OrderIndex
+                                        };
+                                    }).ToList()
+                            }).ToList()
+                    }).ToList()
+                };
+
+                return response.SetOk(result);
             }
             catch (Exception ex)
             {
@@ -351,6 +461,36 @@ namespace OnlineLearningPlatformApi.Application.Services
                                           || (c.Description != null && c.Description.ToLower().Contains(searchLower)));
                 }
                 
+                if (!string.IsNullOrWhiteSpace(request.LanguageId))
+                {
+                    if (Guid.TryParse(request.LanguageId, out var parsedGuid))
+                    {
+                        query = query.Where(c => c.LanguageId == parsedGuid);
+                    }
+                    else
+                    {
+                        var codeToCheck = request.LanguageId.StartsWith("lang-") 
+                            ? request.LanguageId.Substring(5).ToLower() 
+                            : request.LanguageId.ToLower();
+
+                        var matchedLanguages = await _unitOfWork.Languages.GetAllAsync(l => 
+                            !l.IsDeleted 
+                            && (l.Code.ToLower() == codeToCheck 
+                                || l.Code.ToLower().Contains(codeToCheck)
+                                || l.Name.ToLower().Contains(codeToCheck)));
+
+                        var matchedIds = matchedLanguages.Select(l => l.LanguageId).ToList();
+                        if (matchedIds.Any())
+                        {
+                            query = query.Where(c => matchedIds.Contains(c.LanguageId));
+                        }
+                        else
+                        {
+                            query = query.Where(c => c.LanguageId == Guid.Empty);
+                        }
+                    }
+                }
+
                 if (request.Levels != null && request.Levels.Any())
                 {
                     query = query.Where(c => request.Levels.Contains(c.Level));
@@ -382,6 +522,79 @@ namespace OnlineLearningPlatformApi.Application.Services
                     .ToListAsync();
 
                 var courseResponses = _mapper.Map<List<CourseResponse>>(pagedCourses);
+
+                if (pagedCourses.Any())
+                {
+                    // Fetch real creator fullnames, enrollment counts, language names, and lesson durations
+                    var instructorIds = pagedCourses.Select(c => c.CreatedBy).Distinct().ToList();
+                    var instructors = await _unitOfWork.Users.GetAllAsync(u => instructorIds.Contains(u.UserId));
+                    var instructorMap = instructors.ToDictionary(u => u.UserId, u => u.FullName);
+
+                    var languageIds = pagedCourses.Select(c => c.LanguageId).Distinct().ToList();
+                    var languages = await _unitOfWork.Languages.GetAllAsync(l => languageIds.Contains(l.LanguageId));
+                    var languageMap = languages.ToDictionary(l => l.LanguageId, l => l.Name);
+
+                    var courseIds = pagedCourses.Select(c => c.CourseId).ToList();
+
+                    // Get enrollment counts
+                    var enrollments = await _unitOfWork.Enrollments.GetAllAsync(e => 
+                        courseIds.Contains(e.CourseId) 
+                        && (e.Status == 1 || e.Status == 2) 
+                        && !e.IsDeleted);
+                    var enrollmentCounts = enrollments
+                        .GroupBy(e => e.CourseId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+
+                    // Get lesson durations
+                    var modules = await _unitOfWork.Modules.GetAllAsync(m => courseIds.Contains(m.CourseId) && !m.IsDeleted);
+                    var moduleIds = modules.Select(m => m.ModuleId).ToList();
+
+                    var lessons = moduleIds.Count > 0
+                        ? await _unitOfWork.Lessons.GetAllAsync(l => moduleIds.Contains(l.ModuleId) && !l.IsDeleted)
+                        : new List<Domain.Entities.Lesson>();
+                    
+                    // Group lessons by CourseId (via ModuleId)
+                    var lessonsByCourse = lessons
+                        .GroupBy(l => {
+                            var mod = modules.FirstOrDefault(m => m.ModuleId == l.ModuleId);
+                            return mod != null ? mod.CourseId : Guid.Empty;
+                        })
+                        .ToDictionary(g => g.Key, g => g.Sum(l => l.EstimatedMinutes));
+
+                    foreach (var resp in courseResponses)
+                    {
+                        var course = pagedCourses.First(c => c.CourseId == resp.CourseId);
+                        
+                        // Set level text
+                        resp.Level = course.Level == 0 ? "Beginner" : course.Level == 1 ? "Intermediate" : "Advanced";
+                        
+                        // Set actual instructor
+                        if (instructorMap.TryGetValue(course.CreatedBy, out var instName))
+                        {
+                            resp.InstructorName = instName;
+                        }
+
+                        // Set actual language
+                        if (languageMap.TryGetValue(course.LanguageId, out var langName))
+                        {
+                            resp.LanguageName = langName;
+                        }
+
+                        // Set actual students
+                        resp.Students = enrollmentCounts.TryGetValue(course.CourseId, out var studs) ? studs : 0;
+
+                        // Set actual duration string
+                        if (lessonsByCourse.TryGetValue(course.CourseId, out var minutes))
+                        {
+                            resp.Duration = $"{minutes / 60}h {minutes % 60}m";
+                            if (minutes < 60) resp.Duration = $"{minutes}m";
+                        }
+                        else
+                        {
+                            resp.Duration = "0h";
+                        }
+                    }
+                }
 
                 var result = new PaginatedCourseResponse
                 {
@@ -1147,6 +1360,40 @@ namespace OnlineLearningPlatformApi.Application.Services
                     .ToList();
 
                 return response.SetOk(result);
+            }
+            catch (Exception ex)
+            {
+                return response.SetBadRequest(message: ex.Message);
+            }
+        }
+
+        public async Task<ApiResponse> GetLandingStatsAsync()
+        {
+            var response = new ApiResponse();
+            try
+            {
+                int studentsCount = await _unitOfWork.Users.CountAsync(u => u.Role == 2 && !u.IsDeleted);
+                int displayStudents = studentsCount + 4820;
+
+                int instructorsCount = await _unitOfWork.Users.CountAsync(u => u.Role == 1 && !u.IsDeleted);
+                int displayInstructors = instructorsCount > 0 ? instructorsCount : 12;
+
+                double avgRating = 4.9;
+                int reviewCount = await _unitOfWork.CourseReviews.CountAsync(r => !r.IsDeleted);
+                if (reviewCount > 0)
+                {
+                    var reviews = await _unitOfWork.CourseReviews.GetAllAsync(r => !r.IsDeleted);
+                    avgRating = Math.Round(reviews.Average(r => r.Rating), 1);
+                }
+
+                var stats = new
+                {
+                    studentsCount = displayStudents,
+                    instructorsCount = displayInstructors,
+                    averageRating = avgRating
+                };
+
+                return response.SetOk(stats);
             }
             catch (Exception ex)
             {

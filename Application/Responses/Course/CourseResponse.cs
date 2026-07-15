@@ -1,4 +1,4 @@
-﻿namespace OnlineLearningPlatformApi.Application.Responses.Course
+namespace OnlineLearningPlatformApi.Application.Responses.Course
 {
     public class CourseResponse
     {
@@ -15,5 +15,6 @@
         public double Rating { get; set; } = 5.0; // Tạm thời hardcode hoặc tính sau
         public int Students { get; set; } = 0;    // Tạm thời hardcode hoặc count sau
         public string Duration { get; set; } = "10h"; // Tạm thời hardcode
+        public string LanguageName { get; set; } = "Tiếng Việt";
     }
 }

@@ -19,14 +19,23 @@ public class CoursesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetCourses([FromQuery] string? search, [FromQuery] string? languageId, [FromQuery] decimal? maxPrice)
+    public async Task<IActionResult> GetCourses([FromQuery] string? search, [FromQuery] string? languageId, [FromQuery] bool? isFree)
     {
         var filter = new CourseFilterRequest
         {
             SearchTerm = search,
+            LanguageId = languageId,
+            IsFree = isFree,
             PageSize = 100
         };
         var response = await _courseService.GetFilteredCoursesAsync(filter);
+        return StatusCode((int)response.StatusCode, response);
+    }
+
+    [HttpGet("landing-stats")]
+    public async Task<IActionResult> GetLandingStats()
+    {
+        var response = await _courseService.GetLandingStatsAsync();
         return StatusCode((int)response.StatusCode, response);
     }
 

@@ -1,8 +1,9 @@
-﻿namespace OnlineLearningPlatformApi.Application.Requests.Course
+namespace OnlineLearningPlatformApi.Application.Requests.Course
 {
     public class CourseFilterRequest
     {
         public string? SearchTerm { get; set; }
+        public string? LanguageId { get; set; }
         public List<string>? Categories { get; set; } = new();
         public List<int>? Levels { get; set; } = new();
         public bool? IsFree { get; set; }

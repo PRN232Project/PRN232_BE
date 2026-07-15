@@ -29,5 +29,6 @@ namespace OnlineLearningPlatformApi.Application.IServices
         Task<ApiResponse> ValidateAndSubmitForReviewAsync(Guid courseId);
         Task<ApiResponse> GetPendingCoursesForAdminAsync();
         Task<ApiResponse> GetCourseDetailForAdminAsync(Guid courseId);
+        Task<ApiResponse> GetLandingStatsAsync();
     }
 }
