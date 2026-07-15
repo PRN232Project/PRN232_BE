@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatformApi.Application.IServices;
 using OnlineLearningPlatformApi.Application.Requests.Admin;
 using OnlineLearningPlatformApi.Application.Responses.Admin;
@@ -71,6 +71,76 @@ namespace OnlineLearningPlatformApi.Application.Services
                     ExpiredAt = p.ExpiredAt,
                     PaidAt = p.PaidAt
                 }).ToList();
+
+            // 1. Top Courses by Revenue
+            response.TopCoursesByRevenue = paidPayments
+                .GroupBy(p => p.CourseId)
+                .Select(g => {
+                    var course = courses.FirstOrDefault(c => c.CourseId == g.Key);
+                    return new CourseStatRecord
+                    {
+                        CourseId = g.Key ?? Guid.Empty,
+                        Title = course?.Title ?? "Khóa học không tên",
+                        Revenue = g.Sum(p => p.Amount),
+                        EnrollCount = g.Count()
+                    };
+                })
+                .OrderByDescending(x => x.Revenue)
+                .Take(5)
+                .ToList();
+
+            // 2. Top Instructors by Revenue
+            response.TopInstructorsByRevenue = paidPayments
+                .Where(p => p.Course != null)
+                .GroupBy(p => p.Course!.CreatedBy)
+                .Select(g => {
+                    var instructor = users.FirstOrDefault(u => u.UserId == g.Key);
+                    return new InstructorStatRecord
+                    {
+                        InstructorId = g.Key,
+                        InstructorName = instructor?.FullName ?? "Giảng viên không tên",
+                        Revenue = g.Sum(p => p.Amount),
+                        StudentCount = g.Select(p => p.UserId).Distinct().Count()
+                    };
+                })
+                .OrderByDescending(x => x.Revenue)
+                .Take(5)
+                .ToList();
+
+            // 3. Top Courses by Enrollment (Bán chạy nhất)
+            response.TopCoursesByEnrollment = paidPayments
+                .GroupBy(p => p.CourseId)
+                .Select(g => {
+                    var course = courses.FirstOrDefault(c => c.CourseId == g.Key);
+                    return new CourseStatRecord
+                    {
+                        CourseId = g.Key ?? Guid.Empty,
+                        Title = course?.Title ?? "Khóa học không tên",
+                        Revenue = g.Sum(p => p.Amount),
+                        EnrollCount = g.Count()
+                    };
+                })
+                .OrderByDescending(x => x.EnrollCount)
+                .Take(5)
+                .ToList();
+
+            // 4. Top Instructors by Enrollment (Xuất sắc nhất)
+            response.TopInstructorsByEnrollment = paidPayments
+                .Where(p => p.Course != null)
+                .GroupBy(p => p.Course!.CreatedBy)
+                .Select(g => {
+                    var instructor = users.FirstOrDefault(u => u.UserId == g.Key);
+                    return new InstructorStatRecord
+                    {
+                        InstructorId = g.Key,
+                        InstructorName = instructor?.FullName ?? "Giảng viên không tên",
+                        Revenue = g.Sum(p => p.Amount),
+                        StudentCount = g.Select(p => p.UserId).Distinct().Count()
+                    };
+                })
+                .OrderByDescending(x => x.StudentCount)
+                .Take(5)
+                .ToList();
 
             return response;
         }

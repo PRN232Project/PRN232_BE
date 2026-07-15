@@ -3,6 +3,22 @@ using System.Collections.Generic;
 
 namespace OnlineLearningPlatformApi.Application.Responses.Admin
 {
+    public class CourseStatRecord
+    {
+        public Guid CourseId { get; set; }
+        public string? Title { get; set; }
+        public int EnrollCount { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
+    public class InstructorStatRecord
+    {
+        public Guid InstructorId { get; set; }
+        public string? InstructorName { get; set; }
+        public int StudentCount { get; set; }
+        public decimal Revenue { get; set; }
+    }
+
     public class AdminOverviewResponse
     {
         public int TotalUsers { get; set; }
@@ -16,5 +32,10 @@ namespace OnlineLearningPlatformApi.Application.Responses.Admin
         public int TopInstructorStudents { get; set; }
 
         public List<PaymentRecord>? RecentPayments { get; set; }
+
+        public List<CourseStatRecord> TopCoursesByRevenue { get; set; } = new();
+        public List<InstructorStatRecord> TopInstructorsByRevenue { get; set; } = new();
+        public List<CourseStatRecord> TopCoursesByEnrollment { get; set; } = new();
+        public List<InstructorStatRecord> TopInstructorsByEnrollment { get; set; } = new();
     }
 }
