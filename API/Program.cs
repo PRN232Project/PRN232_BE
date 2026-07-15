@@ -48,6 +48,7 @@ builder.Services.AddSingleton<HttpClient>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 builder.Services.AddScoped<IGradedItemService, GradedItemService>();
+builder.Services.AddScoped<IGradedAttemptService, GradedAttemptService>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IStorageService, CloudinaryStorageService>();
 builder.Services.AddScoped<ICertificateService, CertificateService>();
