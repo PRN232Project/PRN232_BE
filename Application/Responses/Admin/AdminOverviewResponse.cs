@@ -19,6 +19,15 @@ namespace OnlineLearningPlatformApi.Application.Responses.Admin
         public decimal Revenue { get; set; }
     }
 
+    public class StudentStatRecord
+    {
+        public Guid UserId { get; set; }
+        public string? FullName { get; set; }
+        public string? Email { get; set; }
+        public int CourseCount { get; set; }
+        public decimal TotalSpent { get; set; }
+    }
+
     public class AdminOverviewResponse
     {
         public int TotalUsers { get; set; }
@@ -37,5 +46,7 @@ namespace OnlineLearningPlatformApi.Application.Responses.Admin
         public List<InstructorStatRecord> TopInstructorsByRevenue { get; set; } = new();
         public List<CourseStatRecord> TopCoursesByEnrollment { get; set; } = new();
         public List<InstructorStatRecord> TopInstructorsByEnrollment { get; set; } = new();
+        public List<StudentStatRecord> TopStudentsBySpending { get; set; } = new();
+        public List<StudentStatRecord> TopStudentsByEnrollment { get; set; } = new();
     }
 }

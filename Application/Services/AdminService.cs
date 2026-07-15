@@ -89,18 +89,17 @@ namespace OnlineLearningPlatformApi.Application.Services
                 .Take(5)
                 .ToList();
 
-            // 2. Top Instructors by Revenue
-            response.TopInstructorsByRevenue = paidPayments
-                .Where(p => p.Course != null)
-                .GroupBy(p => p.Course!.CreatedBy)
-                .Select(g => {
-                    var instructor = users.FirstOrDefault(u => u.UserId == g.Key);
+            // 2. Top Instructors by Revenue (Select from all instructors in DB to show all, even if 0 revenue)
+            var activeInstructors = users.Where(u => u.Role == 1 && !u.IsDeleted).ToList();
+            response.TopInstructorsByRevenue = activeInstructors
+                .Select(inst => {
+                    var instPayments = paidPayments.Where(p => p.Course?.CreatedBy == inst.UserId).ToList();
                     return new InstructorStatRecord
                     {
-                        InstructorId = g.Key,
-                        InstructorName = instructor?.FullName ?? "Giảng viên không tên",
-                        Revenue = g.Sum(p => p.Amount),
-                        StudentCount = g.Select(p => p.UserId).Distinct().Count()
+                        InstructorId = inst.UserId,
+                        InstructorName = inst.FullName,
+                        Revenue = instPayments.Sum(p => p.Amount),
+                        StudentCount = instPayments.Select(p => p.UserId).Distinct().Count()
                     };
                 })
                 .OrderByDescending(x => x.Revenue)
@@ -124,21 +123,57 @@ namespace OnlineLearningPlatformApi.Application.Services
                 .Take(5)
                 .ToList();
 
-            // 4. Top Instructors by Enrollment (Xuất sắc nhất)
-            response.TopInstructorsByEnrollment = paidPayments
-                .Where(p => p.Course != null)
-                .GroupBy(p => p.Course!.CreatedBy)
-                .Select(g => {
-                    var instructor = users.FirstOrDefault(u => u.UserId == g.Key);
+            // 4. Top Instructors by Enrollment (Xuất sắc nhất - Select from all instructors in DB to show all, even if 0 students)
+            response.TopInstructorsByEnrollment = activeInstructors
+                .Select(inst => {
+                    var instPayments = paidPayments.Where(p => p.Course?.CreatedBy == inst.UserId).ToList();
                     return new InstructorStatRecord
                     {
-                        InstructorId = g.Key,
-                        InstructorName = instructor?.FullName ?? "Giảng viên không tên",
-                        Revenue = g.Sum(p => p.Amount),
-                        StudentCount = g.Select(p => p.UserId).Distinct().Count()
+                        InstructorId = inst.UserId,
+                        InstructorName = inst.FullName,
+                        Revenue = instPayments.Sum(p => p.Amount),
+                        StudentCount = instPayments.Select(p => p.UserId).Distinct().Count()
                     };
                 })
                 .OrderByDescending(x => x.StudentCount)
+                .Take(5)
+                .ToList();
+
+            // 5. Top Students by Spending (Mua khóa học nhiều nhất)
+            response.TopStudentsBySpending = paidPayments
+                .GroupBy(p => p.UserId)
+                .Select(g => {
+                    var student = users.FirstOrDefault(u => u.UserId == g.Key);
+                    return new StudentStatRecord
+                    {
+                        UserId = g.Key,
+                        FullName = student?.FullName ?? "Học viên không tên",
+                        Email = student?.Email ?? "---",
+                        CourseCount = g.Count(),
+                        TotalSpent = g.Sum(p => p.Amount)
+                    };
+                })
+                .OrderByDescending(x => x.TotalSpent)
+                .Take(5)
+                .ToList();
+
+            // 6. Top Students by Enrollment (Join khóa học nhiều nhất)
+            response.TopStudentsByEnrollment = enrollments
+                .Where(e => !e.IsDeleted)
+                .GroupBy(e => e.UserId)
+                .Select(g => {
+                    var student = users.FirstOrDefault(u => u.UserId == g.Key);
+                    var studentPayments = paidPayments.Where(p => p.UserId == g.Key).ToList();
+                    return new StudentStatRecord
+                    {
+                        UserId = g.Key,
+                        FullName = student?.FullName ?? "Học viên không tên",
+                        Email = student?.Email ?? "---",
+                        CourseCount = g.Count(),
+                        TotalSpent = studentPayments.Sum(p => p.Amount)
+                    };
+                })
+                .OrderByDescending(x => x.CourseCount)
                 .Take(5)
                 .ToList();
 
