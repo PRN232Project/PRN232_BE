@@ -38,6 +38,27 @@ namespace OnlineLearningPlatformApi.Application.Responses.Course
         public string? VideoUrl { get; set; }
         public string? Content { get; set; }
         public StudentLearningQuizResponse? Quiz { get; set; }
+        public StudentLearningPracticeResponse? Practice { get; set; }
+    }
+
+    public class StudentLearningPracticeResponse
+    {
+        public Guid GradedItemId { get; set; }
+        public string? SubmissionGuidelines { get; set; }
+        public int MaxScore { get; set; }
+        public List<StudentLearningPracticeAttemptResponse> Attempts { get; set; } = new();
+    }
+
+    public class StudentLearningPracticeAttemptResponse
+    {
+        public Guid GradedAttemptId { get; set; }
+        public int AttemptNumber { get; set; }
+        public int Status { get; set; }
+        public DateTime? SubmittedAt { get; set; }
+        public decimal? Score { get; set; }
+        public bool IsPassed { get; set; }
+        public string? SubmittedText { get; set; }
+        public string? Feedback { get; set; }
     }
 
     public class StudentLearningQuizResponse

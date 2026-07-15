@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.Responses;
+using OnlineLearningPlatformApi.Application.Responses;
 using Microsoft.AspNetCore.Http;
 
 namespace OnlineLearningPlatformApi.Application.IServices
@@ -9,5 +9,6 @@ namespace OnlineLearningPlatformApi.Application.IServices
         Task<ApiResponse> SubmitShortAnswerAsync(Guid attemptId, Guid questionId, string answer, IFormFile? file);
         Task<ApiResponse> SubmitAttemptAsync(Guid attemptId);
         Task<ApiResponse> GradeAssignmentAsync(Guid attemptId, decimal score);
+        Task<ApiResponse> SubmitPracticeAttemptAsync(OnlineLearningPlatformApi.Application.Requests.Practice.SubmitPracticeAttemptRequest request);
     }
 }

@@ -1020,6 +1020,11 @@ namespace OnlineLearningPlatformApi.Application.Services
                 var gradedItems = await _unitOfWork.GradedItems.GetAllAsync(gi => lessonItemIds.Contains(gi.LessonItemId) && !gi.IsDeleted);
                 var gradedItemIds = gradedItems.Select(gi => gi.GradedItemId).ToList();
 
+                var studentAttempts = await _unitOfWork.GradedAttempts.GetAllAsync(ga =>
+                    ga.UserId == claim.UserId
+                    && gradedItemIds.Contains(ga.GradedItemId)
+                    && !ga.IsDeleted);
+
                 var questions = (await _unitOfWork.Questions.GetAllAsync(q => gradedItemIds.Contains(q.GradedItemId) && !q.IsDeleted))
                     .OrderBy(q => q.OrderIndex)
                     .ToList();
@@ -1146,6 +1151,40 @@ namespace OnlineLearningPlatformApi.Application.Services
                                                 GradedItemId = gradedItem.GradedItemId,
                                                 Title = firstResource?.Title ?? "Quiz",
                                                 Questions = quizQuestions
+                                            };
+                                        }
+
+                                        if (item.Type == 3 && gradedByLessonItem.TryGetValue(item.LessonItemId, out var practiceItem))
+                                        {
+                                            var attempts = studentAttempts
+                                                .Where(a => a.GradedItemId == practiceItem.GradedItemId)
+                                                .OrderByDescending(a => a.AttemptNumber)
+                                                .Select(a => new StudentLearningPracticeAttemptResponse
+                                                {
+                                                    GradedAttemptId = a.GradedAttemptId,
+                                                    AttemptNumber = a.AttemptNumber,
+                                                    Status = a.Status,
+                                                    SubmittedAt = a.SubmittedAt,
+                                                    Score = a.Score,
+                                                    IsPassed = a.IsPassed,
+                                                    SubmittedText = a.SubmittedText,
+                                                    Feedback = a.Feedback
+                                                })
+                                                .ToList();
+
+                                            var promptText = practiceItem.SubmissionGuidelines;
+                                            var firstQ = questions.FirstOrDefault(q => q.GradedItemId == practiceItem.GradedItemId);
+                                            if (firstQ != null && (string.IsNullOrEmpty(promptText) || promptText == "Write your essay based on the prompt. AI will evaluate it."))
+                                            {
+                                                promptText = firstQ.Content;
+                                            }
+
+                                            material.Practice = new StudentLearningPracticeResponse
+                                            {
+                                                GradedItemId = practiceItem.GradedItemId,
+                                                SubmissionGuidelines = promptText,
+                                                MaxScore = practiceItem.MaxScore,
+                                                Attempts = attempts
                                             };
                                         }
 

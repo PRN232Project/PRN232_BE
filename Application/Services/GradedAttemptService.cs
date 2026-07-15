@@ -1,4 +1,4 @@
-﻿using OnlineLearningPlatformApi.Application.IServices;
+using OnlineLearningPlatformApi.Application.IServices;
 using AutoMapper;
 using OnlineLearningPlatformApi.Domain.Entities;
 using OnlineLearningPlatformApi.Application.Responses;
@@ -239,7 +239,84 @@ namespace OnlineLearningPlatformApi.Application.Services
                     enrollment.CompletedAt = DateTime.UtcNow;
                 }
 
-                _unitOfWork.Enrollments.Update(enrollment);
+            }
+        }
+
+        public async Task<ApiResponse> SubmitPracticeAttemptAsync(OnlineLearningPlatformApi.Application.Requests.Practice.SubmitPracticeAttemptRequest request)
+        {
+            var response = new ApiResponse();
+            try
+            {
+                var userId = _claimService.GetUserClaim().UserId;
+
+                var gradedItem = await _unitOfWork.GradedItems.GetAsync(x => x.LessonItemId == request.LessonItemId && !x.IsDeleted);
+                if (gradedItem == null)
+                {
+                    // Create GradedItem on the fly if not exists
+                    gradedItem = new GradedItem
+                    {
+                        GradedItemId = Guid.NewGuid(),
+                        LessonItemId = request.LessonItemId,
+                        MaxScore = 100,
+                        IsAutoGraded = false,
+                        GradedItemType = 1,
+                        SubmissionGuidelines = "Bài tập thực hành",
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = userId
+                    };
+                    await _unitOfWork.GradedItems.AddAsync(gradedItem);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
+                var attemptCount = await _unitOfWork.GradedAttempts.CountAsync(
+                    x => x.UserId == userId && x.GradedItemId == gradedItem.GradedItemId && !x.IsDeleted);
+
+                var attempt = new GradedAttempt
+                {
+                    GradedAttemptId = Guid.NewGuid(),
+                    UserId = userId,
+                    GradedItemId = gradedItem.GradedItemId,
+                    AttemptNumber = attemptCount + 1,
+                    Status = 2, // 2 = Graded
+                    SubmittedAt = DateTime.UtcNow,
+                    GradedAt = DateTime.UtcNow,
+                    Score = request.Score,
+                    MaxScore = 100,
+                    IsPassed = request.IsPassed,
+                    SubmittedText = request.SubmittedText,
+                    Feedback = request.Feedback,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = userId
+                };
+
+                await _unitOfWork.GradedAttempts.AddAsync(attempt);
+                await _unitOfWork.SaveChangeAsync();
+
+                var dbAttempt = await _unitOfWork.GradedAttempts.GetAsync(
+                    x => x.GradedAttemptId == attempt.GradedAttemptId,
+                    include: q => q
+                        .Include(a => a.GradedAttemptNavigation)
+                            .ThenInclude(g => g.LessonItem)
+                                .ThenInclude(l => l.Lesson)
+                                    .ThenInclude(m => m.Module));
+
+                if (dbAttempt != null)
+                {
+                    await UpdateLessonAndEnrollmentProgress(dbAttempt);
+                    await _unitOfWork.SaveChangeAsync();
+                }
+
+                return response.SetOk(new
+                {
+                    gradedAttemptId = attempt.GradedAttemptId,
+                    score = attempt.Score,
+                    feedback = attempt.Feedback,
+                    isPassed = attempt.IsPassed
+                });
+            }
+            catch (Exception ex)
+            {
+                return response.SetBadRequest(message: ex.Message);
             }
         }
     }
