@@ -270,15 +270,39 @@ namespace OnlineLearningPlatformApi.Application.Services
                     ? (await _unitOfWork.Lessons.GetAllAsync(l => moduleIds.Contains(l.ModuleId) && !l.IsDeleted))
                         .OrderBy(l => l.OrderIndex).ToList()
                     : new List<Domain.Entities.Lesson>();
+                var lessonIds = lessons.Select(l => l.LessonId).ToList();
+
+                var lessonItems = lessonIds.Count > 0
+                    ? (await _unitOfWork.LessonItems.GetAllAsync(li => lessonIds.Contains(li.LessonId) && !li.IsDeleted))
+                        .OrderBy(li => li.OrderIndex).ToList()
+                    : new List<Domain.Entities.LessonItem>();
+                var lessonItemIds = lessonItems.Select(li => li.LessonItemId).ToList();
+
+                var lessonResources = lessonItemIds.Count > 0
+                    ? (await _unitOfWork.LessonResources.GetAllAsync(lr => lessonItemIds.Contains(lr.LessonItemId) && !lr.IsDeleted)).ToList()
+                    : new List<Domain.Entities.LessonResource>();
+
+                var gradedItems = lessonItemIds.Count > 0
+                    ? (await _unitOfWork.GradedItems.GetAllAsync(gi => lessonItemIds.Contains(gi.LessonItemId) && !gi.IsDeleted)).ToList()
+                    : new List<Domain.Entities.GradedItem>();
+                var gradedItemIds = gradedItems.Select(gi => gi.GradedItemId).ToList();
+
+                var questions = gradedItemIds.Count > 0
+                    ? (await _unitOfWork.Questions.GetAllAsync(q => gradedItemIds.Contains(q.GradedItemId) && !q.IsDeleted)).ToList()
+                    : new List<Domain.Entities.Question>();
 
                 var result = new
                 {
                     courseId = course.CourseId,
                     title = course.Title,
+                    subtitle = course.Subtitle,
                     description = course.Description,
                     price = course.Price,
                     image = course.Image,
                     level = course.Level,
+                    tags = course.Tags,
+                    submittedAt = course.SubmittedAt,
+                    createdAt = course.CreatedAt,
                     status = course.Status,
                     instructorName,
                     modules = modules.Select(m => new
@@ -288,13 +312,45 @@ namespace OnlineLearningPlatformApi.Application.Services
                         index = m.Index,
                         lessons = lessons
                             .Where(l => l.ModuleId == m.ModuleId)
-                            .Select(l => new
+                            .Select(l =>
                             {
-                                lessonId = l.LessonId,
-                                title = l.Title,
-                                description = l.Description,
-                                orderIndex = l.OrderIndex,
-                                estimatedMinutes = l.EstimatedMinutes
+                                var lItems = lessonItems.Where(li => li.LessonId == l.LessonId).OrderBy(li => li.OrderIndex).ToList();
+                                return new
+                                {
+                                    lessonId = l.LessonId,
+                                    title = l.Title,
+                                    description = l.Description,
+                                    orderIndex = l.OrderIndex,
+                                    estimatedMinutes = l.EstimatedMinutes,
+                                    items = lItems.Select(li =>
+                                    {
+                                        var resources = lessonResources.Where(lr => lr.LessonItemId == li.LessonItemId).ToList();
+                                        var graded = gradedItems.FirstOrDefault(gi => gi.LessonItemId == li.LessonItemId);
+                                        int questionCount = graded != null ? questions.Count(q => q.GradedItemId == graded.GradedItemId) : 0;
+
+                                        return new
+                                        {
+                                            lessonItemId = li.LessonItemId,
+                                            type = li.Type,
+                                            orderIndex = li.OrderIndex,
+                                            resources = resources.Select(r => new
+                                            {
+                                                lessonResourceId = r.LessonResourceId,
+                                                title = r.Title,
+                                                resourceType = r.ResourceType,
+                                                resourceUrl = r.ResourceUrl,
+                                                textContent = r.TextContent,
+                                                videoSourceType = r.VideoSourceType
+                                            }).ToList(),
+                                            gradedItem = graded != null ? new
+                                            {
+                                                gradedItemId = graded.GradedItemId,
+                                                submissionGuidelines = graded.SubmissionGuidelines,
+                                                questionCount
+                                            } : null
+                                        };
+                                    }).ToList()
+                                };
                             }).ToList()
                     }).ToList()
                 };

@@ -42,16 +42,15 @@ public class StudentCoursesController : ControllerBase
     }
 
     [HttpPost("{courseId:guid}/enroll")]
-    public async Task<IActionResult> Enroll(Guid courseId)
+    public async Task<IActionResult> Enroll(Guid courseId, [FromServices] AppDbContext dbContext)
     {
-        var courseResponse = await _courseService.GetCourseDetailAsync(courseId);
-        if (!courseResponse.IsSuccess)
+        var course = await dbContext.Courses.FirstOrDefaultAsync(c => c.CourseId == courseId && !c.IsDeleted);
+        if (course == null)
         {
-            return StatusCode((int)courseResponse.StatusCode, courseResponse);
+            return BadRequest(new { message = "Không tìm thấy khóa học" });
         }
 
-        var course = courseResponse.Result as CourseResponse;
-        if (course != null && course.Price > 0)
+        if (course.Price > 0)
         {
             return BadRequest(new { message = "Khóa học có phí, vui lòng thanh toán trước khi ghi danh." });
         }
@@ -71,13 +70,7 @@ public class StudentCoursesController : ControllerBase
         [FromServices] AppDbContext dbContext,
         [FromServices] IClaimService claimService)
     {
-        var courseResponse = await _courseService.GetCourseDetailAsync(courseId);
-        if (!courseResponse.IsSuccess)
-        {
-            return StatusCode((int)courseResponse.StatusCode, courseResponse);
-        }
-
-        var course = courseResponse.Result as CourseResponse;
+        var course = await dbContext.Courses.FirstOrDefaultAsync(c => c.CourseId == courseId && !c.IsDeleted);
         if (course == null)
         {
             return BadRequest(new { message = "Không tìm thấy khóa học" });
