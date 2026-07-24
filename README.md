@@ -16,7 +16,7 @@ An enterprise-grade, high-performance **RESTful Web API** backend powering a ful
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Key Features](#-key-features)
@@ -38,39 +38,39 @@ The `PRN232_BE` project acts as the core business engine for an online learning 
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🔐 1. Authentication & Security
+### 1. Authentication & Security
 - **JWT Authentication**: Token-based authentication with custom claims (`sub`, `role`, `email`, `name`).
 - **Role-Based Access Control (RBAC)**: Strict role guards for `Student`, `Instructor`, and `Admin`.
 - **SignalR Token Integration**: Custom `JwtBearerEvents` handler allowing JWT tokens passed via query parameters (`access_token`) for WebSocket connections.
 
-### 📚 2. Rich Course & Content Management
+### 2. Rich Course & Content Management
 - **Hierarchical Course Tree**: Courses contain Modules; Modules contain Lessons; Lessons contain multi-modal Items (Video, Article, Quiz).
 - **Multi-Source Video & Document Support**: Integrates with Cloudinary, Firebase Storage, and external media URLs.
 - **Publishing Review State Machine**: `Draft (0)` ➔ `Pending (1)` ➔ `Published (2)` / `Rejected (3)`.
 
-### 💳 3. Payment Gateway & Wallet Engine
+### 3. Payment Gateway & Wallet Engine
 - **PayOS Payment Gateway Integration**: Generates official PayOS checkout links with webhook signature verification.
 - **Development Sandbox Fallback**: Built-in mock payment handler ensuring uninterrupted local testing when payment keys are absent.
 - **Instructor Earning Wallets**: Tracks balance, transaction histories, and supports Admin payout approval workflows.
 
-### 💬 4. Real-Time Interactions (SignalR)
+### 4. Real-Time Interactions (SignalR)
 - **Direct Messaging (`ChatHub`)**: Real-time 1-on-1 messaging between Students and Instructors with persistent message history.
 - **Push Notifications (`NotificationHub`)**: Live broadcast updates for course reviews, wallet transactions, and system notifications.
 
-### 🎓 5. Automated Progress & Certification
+### 5. Automated Progress & Certification
 - Lesson completion tracking with progress percentage calculations.
 - Automatic PDF certificate generation upon 100% course completion.
 
-### 🛡️ 6. Admin Management & Comprehensive Content Reviewer
+### 6. Admin Management & Comprehensive Content Reviewer
 - Platform revenue analytics and cashflow financial reports.
 - User management (Ban/Unban, Role modifications, Soft deletion).
 - **Interactive Course Inspector**: Full curriculum payload inspection (Videos, Articles, Quiz Question Counts) for pre-publish quality assurance.
 
 ---
 
-## 🏛 Architecture & Design Patterns
+## Architecture & Design Patterns
 
 The solution is architected according to **Onion / Clean Architecture**, separating core domain logic from framework-specific infrastructure and presentation layers.
 
@@ -98,7 +98,7 @@ PRN232_BE/
 
 ---
 
-## 🔄 System Workflow Diagrams
+## System Workflow Diagrams
 
 ### 1. High-Level Architecture Diagram
 
@@ -132,7 +132,7 @@ stateDiagram-v2
 
 ---
 
-## 💻 Technology Stack
+## Technology Stack
 
 | Component | Technology / Library | Version | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -150,25 +150,25 @@ stateDiagram-v2
 
 ---
 
-## 🛣 API Endpoint Reference
+## API Endpoint Reference
 
 The API endpoints are strictly grouped into logical controllers. Detailed interactive documentation is available at `/swagger`.
 
-### 🔐 Authentication (`/api/Auth`)
+### Authentication (`/api/Auth`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/api/Auth/register` | Public | Register a new student account |
 | `POST` | `/api/Auth/login` | Public | Authenticate user & return JWT token |
 | `GET` | `/api/Auth/profile` | Authenticated | Retrieve current user profile |
 
-### 📚 Courses & Catalog (`/api/Courses`)
+### Courses & Catalog (`/api/Courses`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/Courses` | Public | Fetch published courses with search & filter |
 | `GET` | `/api/Courses/{courseId}` | Public | Get public details and curriculum structure |
 | `GET` | `/api/Courses/categories` | Public | List available course categories |
 
-### 🎓 Student Operations (`/api/Student/StudentCourses`)
+### Student Operations (`/api/Student/StudentCourses`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/Student/StudentCourses/my-courses` | Student | Get student's enrolled courses |
@@ -178,7 +178,7 @@ The API endpoints are strictly grouped into logical controllers. Detailed intera
 | `POST` | `/api/Student/StudentProgress/update` | Student | Mark lesson items as completed |
 | `GET` | `/api/Student/StudentCertificates/{courseId}` | Student | Generate/view completion certificate |
 
-### 👨‍🏫 Instructor Workspace (`/api/Instructor`)
+### Instructor Workspace (`/api/Instructor`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/Instructor/courses` | Instructor | Manage instructor's created courses |
@@ -187,7 +187,7 @@ The API endpoints are strictly grouped into logical controllers. Detailed intera
 | `POST` | `/api/Instructor/courses/{courseId}/submit` | Instructor | Submit course for Admin review |
 | `GET` | `/api/Instructor/wallet` | Instructor | Check earnings balance & request payouts |
 
-### 🛡️ Admin Portal (`/api/Admin`)
+### Admin Portal (`/api/Admin`)
 | Method | Endpoint | Access | Description |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/Admin/overview` | Admin | Retrieve platform KPIs & financial summary |
@@ -199,7 +199,7 @@ The API endpoints are strictly grouped into logical controllers. Detailed intera
 
 ---
 
-## ⚡ Real-Time SignalR Hubs
+## Real-Time SignalR Hubs
 
 The application exposes two primary WebSocket SignalR Hubs:
 
@@ -262,7 +262,7 @@ Configuration properties are managed via `API/appsettings.json` or Environment V
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -315,7 +315,7 @@ dotnet ef database update --project Domain --startup-project API
 
 ---
 
-## ❓ Troubleshooting
+## Troubleshooting
 
 ### 1. Database Connection Failure
 - Verify PostgreSQL service is active (`pg_isready` or check Windows Services).
@@ -332,6 +332,6 @@ dotnet ef database update --project Domain --startup-project API
 
 ---
 
-## 📄 License
+## License
 
 This repository is licensed under the [MIT License](LICENSE).
